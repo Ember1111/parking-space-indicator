@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Parking Space Overview</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+    }
+    body {
+      position: relative;
+      font-family: 'Orbitron', sans-serif;
+      color: #0a0a23;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+    .finisher-header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100vh;
+      z-index: -1;
+    }
+    .container {
+      position: relative;
+      z-index: 1;
+      text-align: center;
+      max-width: 800px;
+      width: 100%;
+      margin-top: 1rem;
+    }
+    h1 {
+      font-size: 55px;
+      margin-bottom: 6rem;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      margin-bottom: 1rem;
+    }
+    .slot {
+      border-left: 4px solid #0a1323;
+      padding: 1rem 0.25rem;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      height: 280px;
+    }
+    /* Top row */
+    .grid:first-of-type .slot {
+      border-top: none;
+      border-bottom: 4px solid #0a1323;
+    }
+    /* Bottom row */
+    .grid:last-of-type .slot {
+      border-bottom: none;
+      border-top: 4px solid #0a1323;
+    }
+    /* Left edge */
+    .grid:first-of-type .slot:nth-child(1),
+    .grid:last-of-type .slot:nth-child(1) {
+      border-left: 4px solid #0a1323;
+    }
+    /* Right edge */
+    .grid:first-of-type .slot:nth-child(5),
+    .grid:last-of-type .slot:nth-child(5) {
+      border-right: 4px solid #0a1323;
+    }
+    /* OPEN (green) */
+    .slot.open {
+      background: linear-gradient(to bottom, #eff6ff, #66c23b);
+    }
+    .grid:last-of-type .slot.open {
+      background: linear-gradient(to top, #eff6ff, #66c23b);
+    }
+    /* OCCUPIED (red) */
+    .slot.occupied {
+      background: linear-gradient(to bottom, #eff6ff, #ff0055);
+    }
+    .grid:last-of-type .slot.occupied {
+      background: linear-gradient(to top, #eff6ff, #ff0055);
+    }
+    /* VERIFYING (yellow) */
+    .slot.verifying {
+      background: linear-gradient(to bottom, #eff6ff, #f0c23b);
+    }
+    .grid:last-of-type .slot.verifying {
+      background: linear-gradient(to top, #eff6ff, #f0c23b);
+    }
+    @keyframes blink {
+      0%,100% { opacity: 1; }
+      50%     { opacity: 0; }
+    }
+    .blink {
+      animation: blink 1s infinite;
+    }
+    .slot-number {
+      font-size: 3rem;
+      font-weight: 700;
+    }
+    .status {
+      font-size: 1.2rem;
+      font-weight: 800;
+      letter-spacing: .05em;
+    }
+    .free-count {
+      font-size: 2.5rem;
+      margin: 2rem 0 2rem;
+      font-weight: 900;
+    }
+    .icon {
+      font-size: 4.5rem;
+      margin-bottom: 1rem;
+    }
+    /* adjust vertical positions */
+    .grid:first-of-type .slot-number { margin-bottom: 1.25rem; margin-top: auto; }
+    .grid:last-of-type .slot-number  { margin-top: 1.25rem; margin-bottom: auto; }
+    .grid:first-of-type .icon        { margin-top: auto; margin-bottom: 1rem; }
+    .grid:last-of-type .icon         { margin-top: 1rem;  margin-bottom: auto; }
+  </style>
+
+  <!-- Firebase JS SDK (modular) -->
+  <script type="module">
+    import { initializeApp }       from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-database.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC3hPnOZqst1gzwrAllhqHj4qlP5CbFT9E",
+      authDomain: "vacant-parking-space-indicator.firebaseapp.com",
+      databaseURL: "https://vacant-parking-space-indicator-default-rtdb.firebaseio.com",
+      projectId: "vacant-parking-space-indicator",
+      storageBucket: "vacant-parking-space-indicator.firebasestorage.app",
+      messagingSenderId: "915165126862",
+      appId: "1:915165126862:web:449f949a94f537470fb09f"
+    };
+
+    // init
+    const app = initializeApp(firebaseConfig);
+    const db  = getDatabase(app);
+
+    // listen on root (slot1…slot10)
+    const slotsRef = ref(db, '/');
+    onValue(slotsRef, snapshot => {
+      const data = snapshot.val() || {};
+      let freeCount = 0;
+
+      Object.keys(data).forEach(key => {
+        const val = data[key];
+        const slotEl   = document.getElementById(key);
+        const statusEl = slotEl.querySelector('.status');
+        const iconEl   = slotEl.querySelector('.icon i');
+
+        // clear previous states
+        slotEl.classList.remove('open','verifying','occupied');
+        iconEl.classList.remove('blink');
+        iconEl.style.visibility = 'visible';
+
+        if (val === 0) {
+          slotEl.classList.add('open');
+          statusEl.textContent = 'OPEN';
+          iconEl.style.visibility = 'hidden';
+          freeCount++;
+        }
+        else if (val === 1) {
+          slotEl.classList.add('verifying');
+          statusEl.textContent = 'VERIFYING';
+          iconEl.classList.add('blink');
+        }
+        else if (val === 2) {
+          slotEl.classList.add('occupied');
+          statusEl.textContent = 'OCCUPIED';
+          // icon visible steady
+        }
+      });
+
+      document.querySelector('.free-count')
+              .textContent = `${freeCount} SLOTS FREE`;
+    });
+  </script>
+</head>
+
+<body>
+  <div class="header finisher-header"></div>
+  <div class="container">
+    <h1>Parking Space Overview</h1>
+
+    <!-- Top row -->
+    <div class="grid">
+      <div class="slot open"     id="slot1">
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="slot-number">1</div>
+        <div class="status">OPEN</div>
+      </div>
+      <div class="slot occupied" id="slot2">
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="slot-number">2</div>
+        <div class="status">OCCUPIED</div>
+      </div>
+      <div class="slot open"     id="slot3">
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="slot-number">3</div>
+        <div class="status">OPEN</div>
+      </div>
+      <div class="slot open"     id="slot4">
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="slot-number">4</div>
+        <div class="status">OPEN</div>
+      </div>
+      <div class="slot occupied" id="slot5">
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+        <div class="slot-number">5</div>
+        <div class="status">OCCUPIED</div>
+      </div>
+    </div>
+
+    <!-- Free slots count -->
+    <div class="free-count">7 SLOTS FREE</div>
+
+    <!-- Bottom row -->
+    <div class="grid">
+      <div class="slot open"     id="slot6">
+        <div class="status">OPEN</div>
+        <div class="slot-number">6</div>
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+      </div>
+      <div class="slot open"     id="slot7">
+        <div class="status">OPEN</div>
+        <div class="slot-number">7</div>
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+      </div>
+      <div class="slot open"     id="slot8">
+        <div class="status">OPEN</div>
+        <div class="slot-number">8</div>
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+      </div>
+      <div class="slot open"     id="slot9">
+        <div class="status">OPEN</div>
+        <div class="slot-number">9</div>
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+      </div>
+      <div class="slot occupied" id="slot10">
+        <div class="status">OCCUPIED</div>
+        <div class="slot-number">10</div>
+        <div class="icon"><i class="fa-solid fa-motorcycle"></i></div>
+      </div>
+    </div>
+  </div>
+
+  <script src="finisher-header.es5.min.js" type="text/javascript"></script>
+</body>
+</html>
+
+
+
+<script type="text/javascript">
+new FinisherHeader({
+"count": 90,
+  "size": {
+    "min": 1,
+    "max": 20,
+    "pulse": 0
+  },
+  "speed": {
+    "x": {
+      "min": 0,
+      "max": 0.4
+    },
+    "y": {
+      "min": 0,
+      "max": 0.1
+    }
+  },
+  "colors": {
+    "background": "#eff6ff",
+    "particles": [
+      "#0601ff",
+      "#8789fe",
+      "#ff4b4b",
+      "#1bffc2",
+      "#f88aff"
+    ]
+  },
+  "blending": "overlay",
+  "opacity": {
+    "center": 0,
+    "edge": 0.4
+  },
+  "skew": 0,
+  "shapes": [
+    "s",
+    "t",
+    "c"
+  ]
+});
+</script>

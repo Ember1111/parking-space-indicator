@@ -1,0 +1,54 @@
+body {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: #f3f4f6;
+  margin: 0;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.gps-logo {
+  text-align: center;
+}
+
+.pin {
+  position: relative;
+  width: 100px;
+  height: 140px;
+  background: #ff3e3e;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  margin: auto;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
+.circle {
+  position: absolute;
+  top: 22%;
+  left: 22%;
+  width: 56px;
+  height: 56px;
+  background: white;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transform: rotate(45deg);
+}
+
+.compass-arrow {
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-bottom: 20px solid #ff3e3e;
+  transform: rotate(-15deg);
+}
+
+.label {
+  margin-top: 16px;
+  font-size: 24px;
+  font-weight: bold;
+  color: #333;
+}
